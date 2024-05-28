@@ -1,5 +1,7 @@
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 
+import 'figma_rest_api.dart';
 import 'tools.dart';
 
 class PixelPerfect extends StatefulWidget {
@@ -68,9 +70,49 @@ class PixelPerfect extends StatefulWidget {
         initOpacity: initOpacity,
       );
 
+  factory PixelPerfect.figma({
+    Key? key,
+    required String frameUrl,
+    required String figmaToken,
+    double scale = 3.0,
+    bool useFullWidth = true,
+    bool useAbsoluteBounds = true,
+    bool contentsOnly = true,
+    String? version,
+    Offset offset = Offset.zero,
+    double initBottom = 20.0,
+    double initOpacity = 0.4,
+    required Widget child,
+  }) {
+    final image = FutureBuilder(
+        future: FigmaRestApi.downloadFrameImage(
+          figmatToken: figmaToken,
+          figmaframeUrl: frameUrl,
+          imageScale: scale,
+          useAbsoluteBounds: useAbsoluteBounds,
+          contentsOnly: contentsOnly,
+          version: version,
+        ),
+        builder: (context, snapshot) {
+          if (!snapshot.hasData) return const SizedBox.shrink();
+          return CachedNetworkImage(
+            imageUrl: snapshot.data!.toString(),
+            width: useFullWidth ? MediaQuery.of(context).size.width : null,
+          );
+        });
+    return PixelPerfect._(
+      key: key,
+      child: child,
+      image: image,
+      bottom: initBottom,
+      offset: offset,
+      initOpacity: initOpacity,
+    );
+  }
+
   final Widget child;
   final Offset offset;
-  final Image? image;
+  final Widget? image;
   final double bottom;
   final double initOpacity;
 
@@ -114,65 +156,69 @@ class _PixelPerfectState extends State<PixelPerfect> {
   Widget build(BuildContext context) {
     var hasImage = widget.image != null;
     var isDraggable = isDragSwitcherOn && opacity != 0;
-    return Material(
-      child: GestureDetector(
-        onPanStart: isDraggable ? onPanStart : null,
-        onPanUpdate: isDraggable ? onPanUpdate : null,
-        child: Stack(
-          fit: StackFit.passthrough,
-          clipBehavior: Clip.none,
-          alignment: Alignment.center,
-          children: [
-            AbsorbPointer(
-              absorbing: isDraggable,
-              child: widget.child,
-            ),
-            Positioned(
-              left: offset.dx - (isDraggable ? 1 : 0), // divide border width
-              top: offset.dy - (isDraggable ? 1 : 0), // divide border width
-              child: IgnorePointer(
-                ignoring: true,
-                child: Opacity(
-                  opacity: opacity,
-                  child: hasImage
-                      ? Container(
-                          decoration: isDraggable
-                              ? BoxDecoration(
-                                  border: Border.all(
-                                    color:
-                                        Theme.of(context).colorScheme.secondary,
-                                  ),
-                                )
-                              : null,
-                          child: widget.image!,
-                        )
-                      : const Text('no image'),
+    return Directionality(
+      textDirection: TextDirection.ltr,
+      child: Material(
+        child: GestureDetector(
+          onPanStart: isDraggable ? onPanStart : null,
+          onPanUpdate: isDraggable ? onPanUpdate : null,
+          child: Stack(
+            fit: StackFit.passthrough,
+            clipBehavior: Clip.none,
+            alignment: Alignment.center,
+            children: [
+              AbsorbPointer(
+                absorbing: isDraggable,
+                child: widget.child,
+              ),
+              Positioned(
+                left: offset.dx - (isDraggable ? 1 : 0), // divide border width
+                top: offset.dy - (isDraggable ? 1 : 0), // divide border width
+                child: IgnorePointer(
+                  ignoring: true,
+                  child: Opacity(
+                    opacity: opacity,
+                    child: hasImage
+                        ? Container(
+                            decoration: isDraggable
+                                ? BoxDecoration(
+                                    border: Border.all(
+                                      color: Theme.of(context)
+                                          .colorScheme
+                                          .secondary,
+                                    ),
+                                  )
+                                : null,
+                            child: widget.image!,
+                          )
+                        : const Text('no image'),
+                  ),
                 ),
               ),
-            ),
-            Tools(
-              opacity: opacity,
-              handleOpacityChange: handleOpacityChange,
-              bottom: widget.bottom,
-              toggleDrag: () => setState(() {
-                isDragSwitcherOn = !isDragSwitcherOn;
-              }),
-              isHide: opacity == 0,
-              isRangeShown: !isHide,
-              toogleHide: () {
-                var isHide = opacity != 0;
-                setState(() {
-                  this.isHide = isHide;
-                  opacity = isHide
-                      ? 0.0
-                      : widget.initOpacity == 0
-                          ? 0.4
-                          : widget.initOpacity;
-                });
-              },
-              isDrag: isDragSwitcherOn,
-            ),
-          ],
+              Tools(
+                opacity: opacity,
+                handleOpacityChange: handleOpacityChange,
+                bottom: widget.bottom,
+                toggleDrag: () => setState(() {
+                  isDragSwitcherOn = !isDragSwitcherOn;
+                }),
+                isHide: opacity == 0,
+                isRangeShown: !isHide,
+                toogleHide: () {
+                  var isHide = opacity != 0;
+                  setState(() {
+                    this.isHide = isHide;
+                    opacity = isHide
+                        ? 0.0
+                        : widget.initOpacity == 0
+                            ? 0.4
+                            : widget.initOpacity;
+                  });
+                },
+                isDrag: isDragSwitcherOn,
+              ),
+            ],
+          ),
         ),
       ),
     );
